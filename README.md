@@ -1,13 +1,13 @@
 ![SharpAPI GitHub cover](https://sharpapi.com/sharpapi-github-php-bg.jpg "SharpAPI Node.js Client")
 
-# Product Review Sentiment Analyzer API for Node.js
+# Product Review Sentiment Checker API for Node.js
 
-## ⭐ Analyze product review sentiment with AI — powered by SharpAPI.
+## ⭐ Analyze product review sentiment — powered by SharpAPI AI.
 
 [![npm version](https://img.shields.io/npm/v/@sharpapi/sharpapi-node-product-review-sentiment.svg)](https://www.npmjs.com/package/@sharpapi/sharpapi-node-product-review-sentiment)
 [![License](https://img.shields.io/npm/l/@sharpapi/sharpapi-node-product-review-sentiment.svg)](https://github.com/sharpapi/sharpapi-node-client/blob/master/LICENSE.md)
 
-**SharpAPI Product Review Sentiment Analyzer** uses advanced AI to determine if product reviews are positive, negative, or neutral with confidence scores. Perfect for e-commerce platforms, review management, and customer feedback analysis.
+**SharpAPI Product Review Sentiment** analyzes customer reviews to determine sentiment (positive, negative, neutral). Helps businesses understand customer satisfaction and identify issues quickly.
 
 ---
 
@@ -18,7 +18,10 @@
 3. [Usage](#usage)
 4. [API Documentation](#api-documentation)
 5. [Examples](#examples)
-6. [License](#license)
+6. [Use Cases](#use-cases)
+7. [API Endpoint](#api-endpoint)
+8. [Related Packages](#related-packages)
+9. [License](#license)
 
 ---
 
@@ -51,29 +54,23 @@ const { SharpApiProductReviewSentimentService } = require('@sharpapi/sharpapi-no
 const apiKey = process.env.SHARP_API_KEY; // Store your API key in environment variables
 const service = new SharpApiProductReviewSentimentService(apiKey);
 
-const review = `
-This product exceeded my expectations! The quality is outstanding and delivery was fast.
-I highly recommend it to anyone looking for a reliable solution.
-`;
+const review = 'This product exceeded my expectations! Great quality and fast shipping.';
 
-async function analyzeReview() {
+async function processText() {
   try {
-    // Submit sentiment analysis job
-    const statusUrl = await service.analyzeSentiment(review);
+    // Submit processing job
+    const statusUrl = await service.analyzeReviewSentiment(review);
     console.log('Job submitted. Status URL:', statusUrl);
 
     // Fetch results (polls automatically until complete)
     const result = await service.fetchResults(statusUrl);
-    const sentiment = result.getResultJson();
-
-    console.log('Sentiment:', sentiment.opinion);
-    console.log('Confidence:', sentiment.score + '%');
+    console.log('Result:', result.getResultJson());
   } catch (error) {
     console.error('Error:', error.message);
   }
 }
 
-analyzeReview();
+processText();
 ```
 
 ---
@@ -82,168 +79,51 @@ analyzeReview();
 
 ### Methods
 
-#### `analyzeSentiment(reviewText: string): Promise<string>`
-
-Analyzes the sentiment of a product review.
+The service provides methods for processing content asynchronously. All methods return a status URL for polling results.
 
 **Parameters:**
-- `reviewText` (string, required): The review text to analyze
+- `content` (string, required): The content to process
+- `language` (string, optional): Output language
+- `voice_tone` (string, optional): Desired tone (e.g., professional, casual)
+- `context` (string, optional): Additional context for better results
 
-**Returns:**
-- Promise<string>: Status URL for polling the job result
-
-**Example:**
-```javascript
-const statusUrl = await service.analyzeSentiment(customerReview);
-const result = await service.fetchResults(statusUrl);
-```
+For complete API specifications, see the [Postman Documentation](https://documenter.getpostman.com/view/31106842/2sBXVeGsa8).
 
 ### Response Format
 
-The API returns sentiment classification with confidence score:
-
-```json
-{
-  "opinion": "POSITIVE",
-  "score": 95,
-  "key_phrases": [
-    "exceeded expectations",
-    "outstanding quality",
-    "highly recommend"
-  ]
-}
-```
-
-**Sentiment Values:**
-- `POSITIVE`: Review expresses satisfaction or praise
-- `NEGATIVE`: Review expresses dissatisfaction or criticism
-- `NEUTRAL`: Review is balanced or factual without strong opinion
+The API returns structured JSON data. Response format varies by endpoint - see documentation for details.
 
 ---
 
 ## Examples
 
-### Basic Sentiment Analysis
+### Basic Example
 
 ```javascript
 const { SharpApiProductReviewSentimentService } = require('@sharpapi/sharpapi-node-product-review-sentiment');
 
 const service = new SharpApiProductReviewSentimentService(process.env.SHARP_API_KEY);
 
-const review = 'The product broke after 2 days. Very disappointed with the quality.';
+// Customize polling behavior if needed
+service.setApiJobStatusPollingInterval(10);  // Poll every 10 seconds
+service.setApiJobStatusPollingWait(180);     // Wait up to 3 minutes
 
-service.analyzeSentiment(review)
-  .then(statusUrl => service.fetchResults(statusUrl))
-  .then(result => {
-    const sentiment = result.getResultJson();
-
-    const emoji = sentiment.opinion === 'POSITIVE' ? '😊' :
-                  sentiment.opinion === 'NEGATIVE' ? '😞' : '😐';
-
-    console.log(`${emoji} Sentiment: ${sentiment.opinion} (${sentiment.score}% confidence)`);
-  })
-  .catch(error => console.error('Analysis failed:', error));
+// Use the service
+// ... (implementation depends on specific service)
 ```
 
-### Batch Review Analysis
-
-```javascript
-const service = new SharpApiProductReviewSentimentService(process.env.SHARP_API_KEY);
-
-const reviews = [
-  { id: 1, text: 'Amazing product! Love it.' },
-  { id: 2, text: 'Not worth the money, poor quality.' },
-  { id: 3, text: 'Good product, fast shipping.' },
-  { id: 4, text: 'Terrible experience, would not buy again.' }
-];
-
-const analyzed = await Promise.all(
-  reviews.map(async (review) => {
-    const statusUrl = await service.analyzeSentiment(review.text);
-    const result = await service.fetchResults(statusUrl);
-    const sentiment = result.getResultJson();
-
-    return {
-      id: review.id,
-      text: review.text,
-      sentiment: sentiment.opinion,
-      score: sentiment.score
-    };
-  })
-);
-
-const positive = analyzed.filter(r => r.sentiment === 'POSITIVE').length;
-const negative = analyzed.filter(r => r.sentiment === 'NEGATIVE').length;
-
-console.log(`Positive reviews: ${positive}/${analyzed.length}`);
-console.log(`Negative reviews: ${negative}/${analyzed.length}`);
-```
-
-### Product Rating Dashboard
-
-```javascript
-const service = new SharpApiProductReviewSentimentService(process.env.SHARP_API_KEY);
-
-async function analyzeProductReviews(productId, reviews) {
-  const sentiments = await Promise.all(
-    reviews.map(async (review) => {
-      const statusUrl = await service.analyzeSentiment(review.text);
-      const result = await service.fetchResults(statusUrl);
-      return result.getResultJson();
-    })
-  );
-
-  const positiveCount = sentiments.filter(s => s.opinion === 'POSITIVE').length;
-  const negativeCount = sentiments.filter(s => s.opinion === 'NEGATIVE').length;
-  const neutralCount = sentiments.filter(s => s.opinion === 'NEUTRAL').length;
-
-  const avgScore = sentiments.reduce((sum, s) => sum + s.score, 0) / sentiments.length;
-
-  return {
-    productId,
-    totalReviews: reviews.length,
-    positive: positiveCount,
-    negative: negativeCount,
-    neutral: neutralCount,
-    averageConfidence: Math.round(avgScore),
-    overallSentiment: positiveCount > negativeCount ? 'POSITIVE' : 'NEGATIVE'
-  };
-}
-
-const productReviews = [
-  { text: 'Great quality, very satisfied!' },
-  { text: 'Perfect for my needs.' },
-  { text: 'Not as described, disappointed.' }
-];
-
-const dashboard = await analyzeProductReviews('PROD-123', productReviews);
-console.log('Product Sentiment Dashboard:', dashboard);
-```
+For more examples, visit the [Product Page](https://sharpapi.com/en/catalog/ai/e-commerce/product-review-sentiment-checker).
 
 ---
 
 ## Use Cases
 
-- **E-commerce Platforms**: Analyze customer reviews automatically
-- **Review Moderation**: Flag negative reviews for quick response
-- **Product Insights**: Understand customer satisfaction trends
-- **Quality Control**: Identify products with declining sentiment
-- **Marketing**: Highlight positive reviews in campaigns
-- **Customer Support**: Prioritize responses to negative feedback
-- **Competitive Analysis**: Compare sentiment across products
-
----
-
-## Sentiment Detection
-
-The analyzer evaluates multiple factors:
-
-- **Language Patterns**: Positive vs negative word choices
-- **Emotional Indicators**: Expressions of satisfaction or frustration
-- **Rating Consistency**: Alignment with explicit ratings
-- **Key Phrases**: Important phrases indicating sentiment
-- **Context Understanding**: Industry-specific terminology
-- **Sarcasm Detection**: Identifies ironic or sarcastic reviews
+- **Customer Feedback**: Quickly identify positive and negative reviews
+- **Quality Control**: Spot product issues from review sentiment
+- **Review Moderation**: Prioritize addressing negative feedback
+- **Competitive Analysis**: Analyze competitor product sentiments
+- **Product Development**: Use sentiment data to guide improvements
+- **Marketing Insights**: Identify what customers love about products
 
 ---
 
@@ -259,10 +139,9 @@ For detailed API specifications, refer to:
 
 ## Related Packages
 
-- [@sharpapi/sharpapi-node-travel-review-sentiment](https://www.npmjs.com/package/@sharpapi/sharpapi-node-travel-review-sentiment) - Travel review sentiment
-- [@sharpapi/sharpapi-node-detect-spam](https://www.npmjs.com/package/@sharpapi/sharpapi-node-detect-spam) - Spam detection
-- [@sharpapi/sharpapi-node-product-categories](https://www.npmjs.com/package/@sharpapi/sharpapi-node-product-categories) - Product categorization
-- [@sharpapi/sharpapi-node-client](https://www.npmjs.com/package/@sharpapi/sharpapi-node-client) - Full SharpAPI SDK
+- [@sharpapi/sharpapi-node-travel-review-sentiment](https://www.npmjs.com/package/@sharpapi/sharpapi-node-travel-review-sentiment)
+- [@sharpapi/sharpapi-node-product-categories](https://www.npmjs.com/package/@sharpapi/sharpapi-node-product-categories)
+- [@sharpapi/sharpapi-node-detect-spam](https://www.npmjs.com/package/@sharpapi/sharpapi-node-detect-spam)
 
 ---
 
